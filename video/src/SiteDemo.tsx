@@ -1,16 +1,16 @@
 import React from 'react';
 import { AbsoluteFill, Audio, Easing, Img, Sequence, interpolate, staticFile, useCurrentFrame } from 'remotion';
-import { C, FONT, alpha } from './Legible';
+import { C, FONT, Pic, alpha } from './Legible';
 import RECTS from '../public/shots/rects.json';
 
 /* Site demo: the story told in large type on the left, the real site doing it on the right, cut on the music. */
 const X = { ...C, warn: '#d97706' };
 const SNAP = Easing.bezier(0.16, 1, 0.3, 1);
 const SMOOTH = Easing.bezier(0.45, 0, 0.2, 1);
-const BAR = (60 / 70) * 4 * 30; // frames per bar at 30 fps (70 BPM)
+const BAR = (60 / 84) * 4 * 30; // frames per bar at 30 fps (84 BPM, music-legible.wav)
 const BEAT = BAR / 4;
 const bar = (n: number) => Math.round(n * BAR);
-const MUSIC_FROM = Math.round(5.874 * 30); // one bar before the beat comes in (9.30 s into the track)
+const MUSIC_FROM = 0; // our own track (make_music.py), aligned on bar 0
 
 const t = (f: number, a: number, d = 10) =>
   interpolate(f, [a, a + d], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: SNAP });
@@ -105,25 +105,78 @@ const Title: React.FC = () => {
   );
 };
 
-const Example: React.FC = () => {
+/* English label pinned on the French page */
+const Pin: React.FC<{ cam: Cam; r: Box; label: string; color: string; a: number }> = ({ cam, r, label, color, a }) => {
+  const p = toScreen(cam, r.x, r.y);
+  return <div style={{ position: 'absolute', left: p.x, top: p.y - 46, background: color, color: X.paper, fontSize: 22, fontWeight: 700, letterSpacing: '0.05em', padding: '7px 12px', whiteSpace: 'nowrap', opacity: a, transform: `translateY(${(1 - a) * 10}px)` }}>{label}</div>;
+};
+const Heading: React.FC<{ kicker: string; color?: string; children: React.ReactNode }> = ({ kicker, color = X.ink, children }) => {
   const f = useCurrentFrame();
-  const r = { x: 1, y: 60, w: 684, h: 560 };
-  const cam = camAt(f, [[0, fit(r)], [bar(1.5), push(fit(r))]]);
+  const a = t(f, 0, 8), b = t(f, 3, 9);
   return (
-    <Split kicker="EXAMPLE · A COUR DE CASSATION DECISION" head="One decision, several voices." sub="The Court, the court of appeal, the parties, the case law it cites.">
-      <Shot name="desk0" cam={cam} />
-    </Split>
+    <>
+      <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '0.08em', color, opacity: a }}>{kicker}</div>
+      <div style={{ marginTop: 16, fontSize: 72, fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1.05, opacity: b, transform: `translateY(${(1 - b) * 20}px)` }}>{children}</div>
+    </>
+  );
+};
+
+const VOICES = [
+  { k: 'cour', color: X.cour, name: 'Cour de cassation', role: 'Decides the case' },
+  { k: 'fond', color: X.fond, name: 'Court of appeal', role: 'Its ruling is under review' },
+  { k: 'dem', color: X.dem, name: 'The parties', role: 'Argue their side' },
+];
+const Voices: React.FC = () => {
+  const f = useCurrentFrame();
+  return (
+    <AbsoluteFill style={{ padding: '0 100px', justifyContent: 'center' }}>
+      <Heading kicker="EXAMPLE · A COUR DE CASSATION DECISION">One decision, several voices.</Heading>
+      <div style={{ marginTop: 80, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 36 }}>
+        {VOICES.map((v, i) => {
+          const a = t(f, Math.round(BEAT * (i + 1)), 9);
+          return (
+            <div key={v.k} style={{ display: 'flex', alignItems: 'center', gap: 26, borderTop: `4px solid ${v.color}`, paddingTop: 30, opacity: a, transform: `translateY(${(1 - a) * 24}px)` }}>
+              <div style={{ width: 120, height: 120, background: alpha(v.color, 0.1), display: 'grid', placeItems: 'center', flex: 'none' }}><Pic k={v.k} size={76} color={v.color} /></div>
+              <div>
+                <div style={{ fontSize: 40, fontWeight: 600, letterSpacing: '-0.025em' }}>{v.name}</div>
+                <div style={{ marginTop: 6, fontSize: 30, color: X.grey }}>{v.role}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </AbsoluteFill>
   );
 };
 
 const Problem: React.FC = () => {
   const f = useCurrentFrame();
-  const r = { x: 711, y: 60, w: 488, h: 330 };
-  const cam = camAt(f, [[0, fit(r)], [bar(1), push(fit(r), 1.04)]]);
+  const draft = t(f, Math.round(BEAT), 9), mark = t(f, Math.round(BEAT * 2.5), 10), fact = t(f, Math.round(BEAT * 4), 10);
   return (
-    <Split kicker="THE PROBLEM" color={X.bad} head="AI drafts often mix them up." sub="Here, the court of appeal's reasoning is written as the Court's ruling.">
+    <AbsoluteFill style={{ padding: '0 100px', justifyContent: 'center' }}>
+      <Heading kicker="THE PROBLEM" color={X.bad}>AI drafts mix up the voices.</Heading>
+      <div style={{ marginTop: 60, border: `2px solid ${X.ink}`, padding: '28px 34px', opacity: draft, transform: `translateY(${(1 - draft) * 20}px)` }}>
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.06em', color: X.grey }}>AI DRAFT · TRANSLATED</div>
+        <div style={{ marginTop: 12, fontSize: 52, fontWeight: 500, letterSpacing: '-0.025em', lineHeight: 1.2 }}>
+          “<span style={{ background: alpha(X.bad, 0.16 * mark), boxShadow: `inset 0 -5px 0 ${alpha(X.bad, mark)}` }}>The Cour de cassation held</span> that the recordings must be excluded.”
+        </div>
+      </div>
+      <div style={{ marginTop: 26, display: 'flex', alignItems: 'center', gap: 22, fontSize: 40, fontWeight: 500, letterSpacing: '-0.02em', opacity: fact, transform: `translateY(${(1 - fact) * 16}px)` }}>
+        <span style={{ fontWeight: 700, color: X.bad }}>In fact:</span>
+        <Pic k="fond" size={44} color={X.fond} /><span>the court of appeal said this (§ 13),</span>
+        <Pic k="cour" size={44} color={X.cour} /><span>and the Cour de cassation overturned it (§ 14).</span>
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+const MapStep: React.FC = () => {
+  const f = useCurrentFrame();
+  const r = { x: 1, y: 60, w: 684, h: 560 };
+  const cam = camAt(f, [[0, fit(r)], [bar(1.5), push(fit(r))]]);
+  return (
+    <Split kicker="LEGIBLE" color={X.cour} head="Maps who speaks in every sentence of the decision." sub="One colour per voice, with a probability.">
       <Shot name="desk0" cam={cam} />
-      <Mark cam={cam} lines={R.desk0.wrongLines} p={interpolate(f, [8, 30], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: SMOOTH })} />
     </Split>
   );
 };
@@ -138,10 +191,15 @@ const Attribute: React.FC = () => {
     const v = toScreen(cam, mid(d0.verify).x, mid(d0.verify).y);
     body = <><Shot name="desk0" cam={cam} /><Cursor f={f} path={[[0, v.x + 240, v.y + 140], [9, v.x, v.y]]} click={10} /></>;
   } else {
-    body = <Shot name="desk2" cam={camAt(f, [[16, fit(both, 0.96)], [bar(1), push(fit(both, 0.96), 1.04)]])} />;
+    const d2 = R.desk2, cam = camAt(f, [[16, fit(both, 0.96)], [bar(1.5), push(fit(both, 0.96), 1.04)]]);
+    body = <>
+      <Shot name="desk2" cam={cam} />
+      <Pin cam={cam} r={d2.sel} label="AI DRAFT" color={X.bad} a={t(f, 22, 8)} />
+      <Pin cam={cam} r={d2.target} label="SOURCE · COURT OF APPEAL · § 13" color={X.fond} a={t(f, 30, 8)} />
+    </>;
   }
   return (
-    <Split kicker="LEGIBLE" color={X.cour} head="Every line, attributed to who speaks." sub="Each sentence of the draft is traced to the paragraph it relies on.">
+    <Split kicker="LEGIBLE" color={X.cour} head="Checks each sentence of the AI draft against that map." sub="Here: the draft says the Court, the source is the court of appeal.">
       {body}
     </Split>
   );
@@ -167,10 +225,11 @@ const Fix: React.FC = () => {
     const cam = fit({ x: d2.card.x, y: d2.apply.y - 190, w: d2.card.w, h: 240 });
     const ap = toScreen(cam, mid(d2.apply).x, mid(d2.apply).y);
     body = <><Shot name="desk2" cam={cam} /><Cursor f={f} path={[[0, ap.x + 240, ap.y - 90], [18, ap.x, ap.y]]} click={20} /></>;
-  } else if (f < 60) {
-    body = <Shot name="desk3" cam={fit(d3.sel, 0.75)} />;
+  } else if (f < 66) {
+    const cam = fit(d3.sel, 0.75);
+    body = <><Shot name="desk3" cam={cam} /><Pin cam={cam} r={d3.sel} label="CORRECTED · THE COURT OF APPEAL (§ 13)" color={X.ok} a={t(f, 34, 8)} /></>;
   } else {
-    body = <Shot name="desk4" cam={fit({ x: 380, y: d4._root.h - 400, w: 820, h: 400 }, 0.98)} />;
+    body = <Shot name="desk4" cam={fit({ x: 380, y: d4._root.h - 760, w: 820, h: 760 }, 1)} />;
   }
   return (
     <Split kicker="LEGIBLE" color={X.cour} head="Fixed from the source, before the client sees it.">
@@ -245,14 +304,15 @@ const End: React.FC = () => {
   return (
     <AbsoluteFill style={{ justifyContent: 'center', padding: '0 160px' }}>
       <div style={{ fontSize: 180, fontWeight: 700, letterSpacing: '-0.055em', lineHeight: 1, opacity: a, transform: `translateY(${(1 - a) * 24}px)` }}>Legible</div>
-      <div style={{ marginTop: 18, fontSize: 60, fontWeight: 500, letterSpacing: '-0.03em', opacity: t(f, 5, 8) }}>Who said it.</div>
+      <div style={{ marginTop: 22, fontSize: 52, fontWeight: 500, letterSpacing: '-0.03em', opacity: t(f, 5, 8) }}>checks who said what in legal AI drafts.</div>
+      <div style={{ marginTop: 40, fontSize: 32, fontWeight: 600, color: X.grey, opacity: t(f, 12, 8) }}>github.com/andrfr21/legible</div>
     </AbsoluteFill>
   );
 };
 
 /* ---------- timeline, in bars */
 const PLAN: [React.FC, number][] = [
-  [Title, 1], [Example, 1.5], [Problem, 1], [Attribute, 1], [Block, 1.5], [Fix, 1], [Results, 1], [Why, 1.5], [End, 1],
+  [Title, 1.5], [Voices, 1.5], [Problem, 2], [MapStep, 1.5], [Attribute, 1.5], [Block, 1.5], [Fix, 1.5], [Results, 1.5], [Why, 2], [End, 1.5],
 ];
 const STARTS = PLAN.reduce<number[]>((acc, [, len], i) => [...acc, (acc[i] ?? 0) + len], [0]);
 export const SITE_DEMO_FRAMES = bar(STARTS[STARTS.length - 1]);
@@ -262,7 +322,7 @@ export const SiteDemo: React.FC = () => {
   const vol = interpolate(f, [0, 8, SITE_DEMO_FRAMES - 45, SITE_DEMO_FRAMES - 2], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   return (
     <AbsoluteFill style={{ background: X.paper, color: X.ink, fontFamily: FONT, fontFeatureSettings: '"tnum" 1' }}>
-      <Audio src={staticFile('music.mp3')} trimBefore={MUSIC_FROM} volume={() => vol} />
+      <Audio src={staticFile('music-legible.wav')} trimBefore={MUSIC_FROM} volume={() => vol} />
       {PLAN.map(([Comp], i) => (
         <Sequence key={i} from={bar(STARTS[i])} durationInFrames={bar(STARTS[i + 1]) - bar(STARTS[i])}>
           <AbsoluteFill style={{ background: X.paper }}><Comp /></AbsoluteFill>

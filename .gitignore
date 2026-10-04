@@ -7,3 +7,4 @@ video/out/*.png
 video/node_modules
 video/build/
 video/public/music.mp3
+video/public/music-legible.wav
