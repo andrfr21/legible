@@ -1,0 +1,9 @@
+.env
+cache/
+__pycache__/
+video/node_modules
+video/build/
+video/out/*.png
+video/node_modules
+video/build/
+video/public/music.mp3
